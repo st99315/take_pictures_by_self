@@ -1,0 +1,1 @@
+# take_pictures_by_self
