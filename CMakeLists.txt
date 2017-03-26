@@ -6,7 +6,6 @@ project(take_pictures)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
-  opencv2
   rospy
   sensor_msgs
   std_msgs

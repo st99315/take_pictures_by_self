@@ -2,9 +2,11 @@
 
 import rospy
 import cv2
+from cv_bridge import CvBridge, CvBridgeError
+
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
+from std_srvs.srv import SetBool, SetBoolResponse
 
 import os
 import sys
@@ -25,7 +27,7 @@ class ImageConverter:
         try:
             self.cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:
-            print e
+            print 'ImageConverter_callback:', e
 
         # image size, type
         (rows, cols, channels) = self.cv_image.shape
@@ -35,17 +37,23 @@ class ImageConverter:
         ''' image getter: cv_image '''
         return self.cv_image
 
+    def imshow(self):
+        if not self.cv_image is None:
+            cv2.imshow("Image", self.cv_image)
+            cv2.waitKey(10)
+
 class ImageSaver:
 
-    def __init__(self, tar_dir, base_name='', extension='jpg'):
+    def __init__(self, img_cvt, tar_dir, base_name='', extension='jpg'):
         self.set_saveDirectory(tar_dir)
-
-        self.base_name = base_name
+        self.base_name = base_name if base_name == '' else base_name+'-'
         self.save_count = 0
         self.extension = '.'+extension
         self.update_filePath()
-
         self.name_repeat = 0
+
+        self.img_cvt = img_cvt
+        self.srv = rospy.Service('/save_img', SetBool, self.saveImg_callback)
 
     def set_saveDirectory(self, directory):
         ''' set directory of pictures to save '''
@@ -61,11 +69,12 @@ class ImageSaver:
 
             self.update_filePath()
             self.name_repeat += 1
-            if 10 == self.name_repeat:
-                print('*** Name repeat 10 times, please check!\n')
+            if 1000 == self.name_repeat:
+                print('*** Name repeat 1000 times, please check! ***\n')
                 sys.exit(1)
+
         # claer counter
-        if self.name_repeat is int:
+        if isinstance(self.name_repeat, int):
             self.name_repeat = 0
     
     def update_filePath(self):
@@ -75,35 +84,49 @@ class ImageSaver:
             self.extension)
         self.file_path = os.path.join(self.directory, self.file_name)
 
-    def save(self, image):
+    def save(self):
         ''' save image to desire directory '''
-        self.check_name()
-        print 'save image:', self.file_path
+        if not self.img_cvt.cv_img is None:
+            self.check_name()
+            cv2.imwrite(self.file_path, self.img_cvt.cv_img)
+            print 'save image:', self.file_path
+            self.update_filePath()
+            return True
 
-        cv2.imwrite(self.file_path, image)
-        self.update_filePath()
+        return False
+    
+    def saveImg_callback(self, req):
+        res = SetBoolResponse()
+        
+        if req.data:
+            result = self.save()
+            res.success = result
+            res.message = '' if result else 'image not ready'
+        else:
+            print req.data
+            res.success = False
+
+        return res
 
 if __name__ == '__main__':
 
-    rospy.init_node('image_converter', anonymous=True)
+    rospy.init_node('image_save', anonymous=True)
 
     # instance of image converter and saver
     img_cvt = ImageConverter()
-    img_sav = ImageSaver('~/test1')
+    img_sav = ImageSaver(img_cvt, '~/test3', '5')
 
-    num = 0
+    rospy.loginfo('save image running')
+
+    pic_num = 0
     rate = rospy.Rate(20)
+
     while not rospy.is_shutdown():
-        img = img_cvt.cv_img
+        img_cvt.imshow()
 
-        if not img is None:
-            cv2.imshow("Image window", img)
-            cv2.waitKey(10)
-
-            img_sav.save(img)
-            num+=1
-            if num == 100:
-                break
+        # if pic_num < 100:
+        #     if img_sav.save():
+        #         pic_num += 1
 
         rate.sleep()
 
