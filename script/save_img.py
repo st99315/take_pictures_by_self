@@ -89,6 +89,7 @@ class ImageSaver:
         self.__file_path = os.path.join(self.__directory, self.__file_name)
 
     def __saveImg_callback(self, req):
+        ''' service server request callback '''
         res = SetBoolResponse()
         
         if req.data:
