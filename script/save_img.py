@@ -11,6 +11,9 @@ from std_srvs.srv import SetBool, SetBoolResponse
 import os
 import sys
 
+_NAME_REPEAT = 1000
+_TIME_DIFF   = 5.0
+
 class ImageConverter:
 
     def __init__(self, topic='/camera/color/image_raw', type=Image):
@@ -39,7 +42,7 @@ class ImageConverter:
         ''' image getter: cv_image '''
         return self.__cv_img
 
-    def imshow(self):
+    def imshow(self, event=None):
         if not self.__cv_img is None:
             cv2.imshow("Image", self.__cv_img)
             cv2.waitKey(10)
@@ -51,7 +54,6 @@ class ImageSaver:
         self.__base_name = base_name if base_name == '' else base_name+'-'
         self.__save_count = 0
         self.__extension = '.'+extension
-        self.__update_filePath()
         self.__name_repeat = 0
 
         self.__img_cvt = img_cvt
@@ -71,8 +73,8 @@ class ImageSaver:
 
             self.__update_filePath()
             self.__name_repeat += 1
-            if 1000 == self.__name_repeat:
-                print('*** Name repeat 1000 times, please check! ***\n')
+            if _NAME_REPEAT == self.__name_repeat:
+                print '*** Name repeat %d times, please check! ***\n' % _NAME_REPEAT
                 sys.exit(1)
 
         # claer counter
@@ -92,7 +94,7 @@ class ImageSaver:
         if req.data:
             result = self.save()
             res.success = result
-            res.message = '' if result else 'image not ready'
+            res.message = self.__file_name if result else 'image not ready'
         else:
             print req.data
             res.success = False
@@ -104,13 +106,13 @@ class ImageSaver:
         if not self.__img_cvt.cv_img is None:
             # is image refreshed
             req_time = rospy.Time.now().to_sec()
-            if  abs(req_time - self.__img_cvt.img_stamp.to_sec()) > 5.0:
+            if  abs(req_time - self.__img_cvt.img_stamp.to_sec()) > _TIME_DIFF:
                 return False
-            
+
+            self.__update_filePath()
             self.__check_name()
             cv2.imwrite(self.__file_path, self.__img_cvt.cv_img)
             print 'save image:', self.__file_path
-            self.__update_filePath()
             return True
 
         return False
@@ -119,22 +121,30 @@ if __name__ == '__main__':
 
     rospy.init_node('image_save', anonymous=True)
 
+    # param for file path
+    directory = rospy.get_param('directory', '~/test')
+    class_num = rospy.get_param('class_num', '18')
+
     # instance of image converter and saver
     img_cvt = ImageConverter()
-    img_sav = ImageSaver(img_cvt, '~/test3', '5')
+    img_sav = ImageSaver(img_cvt, directory, class_num)
 
+    rospy.on_shutdown(cv2.destroyAllWindows)
     rospy.loginfo('save image running')
 
-    pic_num = 0
-    rate = rospy.Rate(20)
+    # timer for show image 20hz
+    rospy.Timer(rospy.Duration(.05), img_cvt.imshow)
+    rospy.spin()
 
-    while not rospy.is_shutdown():
-        img_cvt.imshow()
+    ''' test for auto take pictures '''
+    # pic_num = 0
+    # rate = rospy.Rate(20)
 
-        if pic_num < 100:
-            if img_sav.save():
-                pic_num += 1
+    # while not rospy.is_shutdown():
+    #     img_cvt.imshow()
 
-        rate.sleep()
+    #     if pic_num < 100:
+    #         if img_sav.save():
+    #             pic_num += 1
 
-    cv2.destroyAllWindows()
+    #     rate.sleep()
