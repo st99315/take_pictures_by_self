@@ -1,6 +1,6 @@
 # Take Pictures by Self
 
-## Request Package:
+## Request Packages
 * librealsense
 * realsense_camera
 * cv_bridge
