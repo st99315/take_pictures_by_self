@@ -1,3 +1,5 @@
+"""Use to generate arm task and run."""
+
 #!/usr/bin/env python
 
 import rospy
@@ -9,17 +11,20 @@ from manipulator_h_base_module_msgs.msg import IK_Cmd
 import sys
 from math import radians, degrees
 
-_ROLL_MAX,  _ROLL_MIN  =  30, -30 #radians(40),  radians(-40)
-_PITCH_MAX, _PITCH_MIN = -10, -80 #radians(-10), radians(-80)
-_YAW_MAX,   _YAW_MIN   =  40, -40 #radians(40),  radians(-40)
-_STEP = 5 #radians(5)
+_ROLL_MAX, _ROLL_MIN = 30, -30
+_PITCH_MAX, _PITCH_MIN = -10, -80
+_YAW_MAX, _YAW_MIN = 40, -40
+_STEP = 5
 
-_POS = (0, .6, .1) # x, y, z
+_POS = (0, .6, .1)  # x, y, z
 _ORI = (-20, 0, 0)  # pitch, roll, yaw
 
+
 class ArmTask:
+    """Running arm task class."""
 
     def __init__(self):
+        """Inital object."""
         self.__set_pubSub()
         rospy.on_shutdown(self.stop_task)
         self.__set_mode_pub.publish('set')
@@ -58,13 +63,14 @@ class ArmTask:
 
     def __status_callback(self, msg):
         if 'IK Failed' in msg.status_msg:
-                rospy.logwarn('ik fail')
-                self.stop_task()
+            rospy.logwarn('ik fail')
+            self.stop_task()
 
         elif 'End Trajectory' in msg.status_msg:
-            self.__is_busy = False 
+            self.__is_busy = False
 
     def pub_ikCmd(self, mode='line', pos=_POS, euler=_ORI):
+        """Publish ik cmd msg to manager node."""
         cmd = []
 
         for p in pos:
@@ -80,30 +86,33 @@ class ArmTask:
         self.__is_busy = True
 
     def stop_task(self):
+        """Stop task running."""
         self.__set_mode_pub.publish('')
 
     def set_endlink(self, dis_m):
+        """TODO: change endlink."""
         self.__set_endlink_pub.publish(dis_m)
 
     def gen_nextEuler(self):
-        ''' generator '''
+        """Generator euler angle."""
         p, y = _PITCH_MAX, _YAW_MAX
 
-        for p in range(_PITCH_MAX, _PITCH_MIN-_STEP, -_STEP):
-            if p % 2 == 0: 
-                for y in range(_YAW_MAX, _YAW_MIN-_STEP, -_STEP):
+        for p in range(_PITCH_MAX, _PITCH_MIN - _STEP, -_STEP):
+            if p % 2 == 0:
+                for y in range(_YAW_MAX, _YAW_MIN - _STEP, -_STEP):
                     yield (p, y)
             else:
-                for y in range(_YAW_MIN, _YAW_MAX+_STEP, _STEP):
+                for y in range(_YAW_MIN, _YAW_MAX + _STEP, _STEP):
                     yield (p, y)
 
     def run(self):
+        """Get euler angle and run task."""
         if self.__is_busy:
             return
         else:
             (p, y) = next(self.__generator)
             self.pub_ikCmd('ptp', euler=(p, 0, y))
-            
+
 
 if __name__ == '__main__':
 
