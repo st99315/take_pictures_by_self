@@ -5,17 +5,21 @@ import rospy
 from std_msgs.msg import String, Float64
 from robotis_controller_msgs.msg import StatusMsg
 from manipulator_h_base_module_msgs.msg import IK_Cmd
+from std_srvs.srv import SetBool
 
 import sys
 from math import radians, degrees
 
-_ROLL_MAX,  _ROLL_MIN  =  30, -30 #radians(40),  radians(-40)
-_PITCH_MAX, _PITCH_MIN = -10, -80 #radians(-10), radians(-80)
-_YAW_MAX,   _YAW_MIN   =  40, -40 #radians(40),  radians(-40)
-_STEP = 5 #radians(5)
+_PITCH_MAX, _PITCH_MIN =   0, -15
+_YAW_MAX,   _YAW_MIN   =  20, -20
 
-_POS = (0, .6, .1) # x, y, z
-_ORI = (-20, 0, 0)  # pitch, roll, yaw
+_STEP_P = 5
+_STEP_Y = 10
+
+_POS = (0, 0.33, 0.42) # x, y, z
+_ORI = (0, -3, 0)  # pitch, roll, yaw
+
+_WRIST_LEN = 0.33 - 0.16
 
 class ArmTask:
 
@@ -24,6 +28,9 @@ class ArmTask:
         rospy.on_shutdown(self.stop_task)
         self.__set_mode_pub.publish('set')
         self.__generator = self.gen_nextEuler()
+        self.__is_busy = False
+        self.__dis_m = None
+        self.__flag = False
 
     def __set_pubSub(self):
         self.__set_mode_pub = rospy.Publisher(
@@ -72,6 +79,11 @@ class ArmTask:
         for e in euler:
             cmd.append(e)
 
+        # if change tool length
+        if self.__dis_m is not None:
+            # pos: y = y + dis - _WRIST_LEN
+            cmd[1] = cmd[1] + self.__dis_m - _WRIST_LEN
+
         if 'line' == mode:
             self.__cmd_pub.publish(cmd)
         elif 'ptp' == mode:
@@ -83,38 +95,54 @@ class ArmTask:
         self.__set_mode_pub.publish('')
 
     def set_endlink(self, dis_m):
+        self.__dis_m = dis_m
         self.__set_endlink_pub.publish(dis_m)
 
     def gen_nextEuler(self):
         ''' generator '''
         p, y = _PITCH_MAX, _YAW_MAX
 
-        for p in range(_PITCH_MAX, _PITCH_MIN-_STEP, -_STEP):
+        for p in range(_PITCH_MAX, _PITCH_MIN-_STEP_P, -_STEP_P):
             if p % 2 == 0: 
-                for y in range(_YAW_MAX, _YAW_MIN-_STEP, -_STEP):
+                for y in range(_YAW_MAX, _YAW_MIN-_STEP_Y, -_STEP_Y):
                     yield (p, y)
             else:
-                for y in range(_YAW_MIN, _YAW_MAX+_STEP, _STEP):
+                for y in range(_YAW_MIN, _YAW_MAX+_STEP_Y, _STEP_Y):
                     yield (p, y)
 
     def run(self):
         if self.__is_busy:
             return
         else:
-            (p, y) = next(self.__generator)
-            self.pub_ikCmd('ptp', euler=(p, 0, y))
-            
+            if self.__flag:
+                rospy.sleep(.5)
+                req = rospy.ServiceProxy('/save_img', SetBool)
+                res = req(True)
+            else:
+                self.__flag = True
+
+            try:
+                p, y = self.__generator.next()
+                self.pub_ikCmd('ptp', euler=(p, 0, y))
+            except StopIteration as s:
+                rospy.loginfo('Taking pictures of this time is done.')
+                raw_input('Please press <Enter> key to continue.')
+                self.__generator = self.gen_nextEuler()
+                req = rospy.ServiceProxy('/save_img', SetBool)
+                res = req(False)
 
 if __name__ == '__main__':
 
     rospy.init_node('robot_arm_task', anonymous=True)
     rospy.loginfo('robot arm task running')
-    dis_m = rospy.get_param('distance', 0.1)
+    dis_m = rospy.get_param('distance', 0.6)
 
     task = ArmTask()
     task.set_endlink(dis_m)
     rospy.sleep(1)
     task.pub_ikCmd('ptp')
+
+    rospy.wait_for_service('/save_img')
 
     try:
         rate = rospy.Rate(10)
@@ -123,4 +151,7 @@ if __name__ == '__main__':
             rate.sleep()
 
     except rospy.exceptions.ROSInterruptException as e:
-        print 'close'
+        print 'ROS is closed.'
+
+    except Exception as e:
+        print e

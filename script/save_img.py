@@ -49,38 +49,37 @@ class ImageConverter:
 
 class ImageSaver:
 
-    def __init__(self, img_cvt, tar_dir, base_name='', extension='jpg'):
-        self.__set_saveDirectory(tar_dir)
+    def __init__(self, img_cvt, tar_dir, sub_dir='1', base_name='', extension='jpg'):
+        self.__main_dir = tar_dir
+        self.__sub_dir = int(sub_dir)
+        self.__set_saveDirectory()
+
         self.__base_name = base_name if base_name == '' else base_name+'-'
         self.__save_count = 0
         self.__extension = '.'+extension
-        self.__name_repeat = 0
 
         self.__img_cvt = img_cvt
         self.__srv = rospy.Service('/save_img', SetBool, self.__saveImg_callback)
 
-    def __set_saveDirectory(self, directory):
-        ''' set directory of pictures to save '''
-        # convert ~/ to abs_path
-        self.__directory = os.path.expanduser(directory)
-        if not os.path.exists(self.__directory):
-            os.makedirs(self.__directory)
-            self.__name_repeat = None
+    def __set_saveDirectory(self):
+        """Setting directory of pictures to save."""
+        self.__update_dir()
+        os.makedirs(self.__directory)
+
+    def __update_dir(self):
+        while True:
+            directory = os.path.join(self.__main_dir, '{:03d}'.format(self.__sub_dir))
+            # convert ~/ to abs_path
+            self.__directory = os.path.expanduser(directory)
+            if os.path.exists(self.__directory):
+                self.__sub_dir += 1
+            else:
+                break
 
     def __check_name(self):
-        while (os.path.isfile(self.__file_path) and
-            isinstance(self.__name_repeat, int)):
-
+        while os.path.isfile(self.__file_path):
             self.__update_filePath()
-            self.__name_repeat += 1
-            if _NAME_REPEAT == self.__name_repeat:
-                print '*** Name repeat %d times, please check! ***\n' % _NAME_REPEAT
-                sys.exit(1)
 
-        # claer counter
-        if isinstance(self.__name_repeat, int):
-            self.__name_repeat = 0
-    
     def __update_filePath(self):
         self.__save_count += 1
         self.__file_name = (self.__base_name +
@@ -97,8 +96,12 @@ class ImageSaver:
             res.success = result
             res.message = self.__file_name if result else 'image not ready'
         else:
-            print req.data
-            res.success = False
+            """Data of requset is false then change name of directory."""
+            self.__set_saveDirectory()
+            res.success = True
+            res.message = self.__directory
+            print 'Change directory:', self.__directory
+            self.__save_count = 0
 
         return res
 
@@ -118,34 +121,25 @@ class ImageSaver:
 
         return False
 
+
+
 if __name__ == '__main__':
 
     rospy.init_node('image_save', anonymous=True)
 
     # param for file path
     directory = rospy.get_param('directory', '~/test')
-    class_num = rospy.get_param('class_num', '18')
+    sub_dir   = rospy.get_param('sub_dir',   '001')
+    item_name = rospy.get_param('item_name', 'unknow')
 
     # instance of image converter and saver
     img_cvt = ImageConverter()
-    img_sav = ImageSaver(img_cvt, directory, class_num)
+    img_sav = ImageSaver(img_cvt, directory, sub_dir, item_name)
 
     rospy.on_shutdown(cv2.destroyAllWindows)
-    rospy.loginfo('save image running')
+    rospy.loginfo('Image saver is running.')
 
     # timer for show image 20hz
+    # comment the line below if using ssh connect 
     rospy.Timer(rospy.Duration(.05), img_cvt.imshow)
     rospy.spin()
-
-    ''' test for auto take pictures '''
-    # pic_num = 0
-    # rate = rospy.Rate(20)
-
-    # while not rospy.is_shutdown():
-    #     img_cvt.imshow()
-
-    #     if pic_num < 100:
-    #         if img_sav.save():
-    #             pic_num += 1
-
-    #     rate.sleep()

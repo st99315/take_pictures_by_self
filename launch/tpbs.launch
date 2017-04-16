@@ -1,0 +1,21 @@
+<?xml version="1.0" ?>
+
+<launch>
+
+    <arg name="img_set_dir" default="~/img" />
+    <arg name="img_sub_dir" default="001" />
+    <arg name="item"        default="crayons" />
+
+    <param name="directory" type="str"  value="$(arg img_set_dir)/$(arg item)" />
+    <param name="sub_dir"   type="str"  value="$(arg img_sub_dir)" />
+    <param name="item_name" type="str"  value="$(arg item)" />
+
+    <!--<include file="$(find realsense_camera)/launch/sr300_nodelet_default.launch" />-->
+
+    <node name="save_img" pkg="take_pictures" type="save_img.py"
+            output="screen" />
+
+    <node name="arm_task" pkg="take_pictures" type="arm_task.py"
+            output="screen" />
+
+</launch>
