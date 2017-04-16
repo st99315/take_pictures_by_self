@@ -1,6 +1,6 @@
-"""Use to generate arm task and run."""
-
 #!/usr/bin/env python
+
+"""Use to generate arm task and run."""
 
 import rospy
 
@@ -132,7 +132,7 @@ class ArmTask:
             try:
                 p, y = self.__generator.next()
                 self.pub_ikCmd('ptp', euler=(p, 0, y))
-            except StopIteration as s:
+            except StopIteration:
                 rospy.loginfo('Taking pictures of this time is done.')
                 raw_input('Please press <Enter> key to continue.')
                 self.__generator = self.gen_nextEuler()
@@ -151,16 +151,14 @@ if __name__ == '__main__':
     rospy.sleep(1)
     task.pub_ikCmd('ptp')
 
-    rospy.wait_for_service('/save_img')
-
     try:
+        rospy.wait_for_service('/save_img')
+
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             task.run()
             rate.sleep()
-
-    except rospy.exceptions.ROSInterruptException as e:
-        print 'ROS is closed.'
-
+    except rospy.exceptions.ROSInterruptException:
+        rospy.loginfo('ROS is closed.')
     except Exception as e:
         print e

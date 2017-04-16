@@ -1,6 +1,6 @@
-"""Get realsense image from realsense node, and save image."""
-
 #!/usr/bin/env python
+
+"""Get realsense image from realsense node, and save image."""
 
 import rospy
 import cv2
@@ -59,7 +59,7 @@ class ImageSaver:
 
     def __init__(self, img_cvt, tar_dir, sub_dir='1', base_name='', extension='jpg'):
         self.__main_dir = tar_dir
-        self.__sub_dir = int(sub_dir)
+        self.__sub_dir = int(sub_dir) if sub_dir is not '' else None
         self.__set_saveDirectory()
 
         self.__base_name = base_name if base_name == '' else base_name+'-'
@@ -72,8 +72,15 @@ class ImageSaver:
 
     def __set_saveDirectory(self):
         """Setting directory of pictures to save."""
-        self.__update_dir()
-        os.makedirs(self.__directory)
+        if self.__sub_dir is None:
+            self.__directory = os.path.expanduser(self.__main_dir)
+        else:
+            self.__update_dir()
+        try:
+            os.makedirs(self.__directory)
+        except OSError as e:
+            rospy.logwarn(e)
+            raw_input('Please check directory, and press <Enter> key to continue.')
 
     def __update_dir(self):
         while True:
@@ -132,6 +139,17 @@ class ImageSaver:
         return False
 
 
+def get_today():
+    import datetime
+    now = datetime.datetime.now()
+    return (
+        '~/image-'+
+        '{:04d}'.format(now.year)+
+        '{:02d}'.format(now.month)+
+        '{:02d}'.format(now.day)
+    )
+
+
 if __name__ == '__main__':
 
     rospy.init_node('image_save', anonymous=True)
@@ -141,6 +159,9 @@ if __name__ == '__main__':
     sub_dir   = rospy.get_param('sub_dir',   '001')
     item_name = rospy.get_param('item_name', 'unknow')
 
+    if directory[0] is '/':
+        directory = os.path.join(get_today(), item_name)
+
     # instance of image converter and saver
     img_cvt = ImageConverter()
     img_sav = ImageSaver(img_cvt, directory, sub_dir, item_name)
@@ -148,7 +169,12 @@ if __name__ == '__main__':
     rospy.on_shutdown(cv2.destroyAllWindows)
     rospy.loginfo('Image saver is running.')
 
-    # timer for show image 20hz
-    # comment the line below if using ssh connect 
-    rospy.Timer(rospy.Duration(.05), img_cvt.imshow)
-    rospy.spin()
+    try:
+        # timer for show image 20hz
+        # comment the line below if using ssh connect 
+        rospy.Timer(rospy.Duration(.05), img_cvt.imshow)
+        rospy.spin()
+    except rospy.exceptions.ROSInterruptException:
+        rospy.loginfo('ROS is closed.')
+    except Exception as e:
+        rospy.logerr(e)
