@@ -136,6 +136,7 @@ class ArmTask:
                 rospy.loginfo('Taking pictures of this time is done.')
                 raw_input('Please press <Enter> key to continue.')
                 self.__generator = self.gen_nextEuler()
+                self.__flag = False
                 req = rospy.ServiceProxy('/save_img', SetBool)
                 res = req(False)
 
