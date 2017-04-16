@@ -1,3 +1,5 @@
+"""Get realsense image from realsense node, and save image."""
+
 #!/usr/bin/env python
 
 import rospy
@@ -12,17 +14,20 @@ import os
 import sys
 
 _NAME_REPEAT = 1000
-_TIME_DIFF   = 5.0
+_TIME_DIFF = 5.0
+
 
 class ImageConverter:
+    """Get realsense image and convert to cv image type."""
 
     def __init__(self, topic='/camera/color/image_raw', type=Image):
+        """Initial cv_bridge, subscriber, and image."""
         self.__bridge = CvBridge()
         self.__img_sub = rospy.Subscriber(
             topic,
             type,
             self.__callback,
-            queue_size = 1)
+            queue_size=1)
 
         self.__cv_img = None
         self.img_stamp = None
@@ -39,15 +44,18 @@ class ImageConverter:
 
     @property
     def cv_img(self):
-        ''' image getter: cv_image '''
+        """Image getter: cv_image."""
         return self.__cv_img
 
     def imshow(self, event=None):
-        if not self.__cv_img is None:
+        """Show cv image."""
+        if self.__cv_img is not None:
             cv2.imshow("Image", self.__cv_img)
             cv2.waitKey(10)
 
+
 class ImageSaver:
+    """Saving image and setting its directory."""
 
     def __init__(self, img_cvt, tar_dir, sub_dir='1', base_name='', extension='jpg'):
         self.__main_dir = tar_dir
@@ -59,7 +67,8 @@ class ImageSaver:
         self.__extension = '.'+extension
 
         self.__img_cvt = img_cvt
-        self.__srv = rospy.Service('/save_img', SetBool, self.__saveImg_callback)
+        self.__srv = rospy.Service(
+            '/save_img', SetBool, self.__saveImg_callback)
 
     def __set_saveDirectory(self):
         """Setting directory of pictures to save."""
@@ -81,16 +90,17 @@ class ImageSaver:
             self.__update_filePath()
 
     def __update_filePath(self):
+        """Update file path of image to save."""
         self.__save_count += 1
         self.__file_name = (self.__base_name +
-            '{:05d}'.format(self.__save_count) +
-            self.__extension)
+                            '{:05d}'.format(self.__save_count) +
+                            self.__extension)
         self.__file_path = os.path.join(self.__directory, self.__file_name)
 
     def __saveImg_callback(self, req):
-        ''' service server request callback '''
+        """Service server request callback."""
         res = SetBoolResponse()
-        
+
         if req.data:
             result = self.save()
             res.success = result
@@ -106,11 +116,11 @@ class ImageSaver:
         return res
 
     def save(self):
-        ''' save image to desire directory '''
-        if not self.__img_cvt.cv_img is None:
+        """Save image to desire directory."""
+        if self.__img_cvt.cv_img is not None:
             # is image refreshed
             req_time = rospy.Time.now().to_sec()
-            if  abs(req_time - self.__img_cvt.img_stamp.to_sec()) > _TIME_DIFF:
+            if abs(req_time - self.__img_cvt.img_stamp.to_sec()) > _TIME_DIFF:
                 return False
 
             self.__update_filePath()
@@ -120,7 +130,6 @@ class ImageSaver:
             return True
 
         return False
-
 
 
 if __name__ == '__main__':

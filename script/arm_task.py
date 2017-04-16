@@ -1,3 +1,5 @@
+"""Use to generate arm task and run."""
+
 #!/usr/bin/env python
 
 import rospy
@@ -21,9 +23,12 @@ _ORI = (0, -3, 0)  # pitch, roll, yaw
 
 _WRIST_LEN = 0.33 - 0.16
 
+
 class ArmTask:
+    """Running arm task class."""
 
     def __init__(self):
+        """Inital object."""
         self.__set_pubSub()
         rospy.on_shutdown(self.stop_task)
         self.__set_mode_pub.publish('set')
@@ -65,13 +70,14 @@ class ArmTask:
 
     def __status_callback(self, msg):
         if 'IK Failed' in msg.status_msg:
-                rospy.logwarn('ik fail')
-                self.stop_task()
+            rospy.logwarn('ik fail')
+            self.stop_task()
 
         elif 'End Trajectory' in msg.status_msg:
-            self.__is_busy = False 
+            self.__is_busy = False
 
     def pub_ikCmd(self, mode='line', pos=_POS, euler=_ORI):
+        """Publish ik cmd msg to manager node."""
         cmd = []
 
         for p in pos:
@@ -92,6 +98,7 @@ class ArmTask:
         self.__is_busy = True
 
     def stop_task(self):
+        """Stop task running."""
         self.__set_mode_pub.publish('')
 
     def set_endlink(self, dis_m):
@@ -99,7 +106,7 @@ class ArmTask:
         self.__set_endlink_pub.publish(dis_m)
 
     def gen_nextEuler(self):
-        ''' generator '''
+        """Generator euler angle."""
         p, y = _PITCH_MAX, _YAW_MAX
 
         for p in range(_PITCH_MAX, _PITCH_MIN-_STEP_P, -_STEP_P):
@@ -111,6 +118,7 @@ class ArmTask:
                     yield (p, y)
 
     def run(self):
+        """Get euler angle and run task."""
         if self.__is_busy:
             return
         else:
@@ -130,6 +138,7 @@ class ArmTask:
                 self.__generator = self.gen_nextEuler()
                 req = rospy.ServiceProxy('/save_img', SetBool)
                 res = req(False)
+
 
 if __name__ == '__main__':
 
