@@ -146,6 +146,15 @@ if __name__ == '__main__':
     rospy.init_node('robot_arm_task', anonymous=True)
     rospy.loginfo('robot arm task running')
     dis_m = rospy.get_param('distance', 0.6)
+    velocity = rospy.get_param('velocity', 60)
+
+    set_vel_pub = rospy.Publisher(
+        '/robotis/base/set_velocity',
+        Float64,
+        latch=True,
+        queue_size=1
+    )
+    set_vel_pub.publish(velocity)
 
     task = ArmTask()
     task.set_endlink(dis_m)

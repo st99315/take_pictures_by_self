@@ -2,13 +2,16 @@
 
 <launch>
 
-    <arg name="img_set_dir" default="~/img" />
-    <arg name="img_sub_dir" default="001" />
-    <arg name="item"        default="crayons" />
+    <arg name="img_set_dir" default="" />
+    <arg name="img_sub_dir" default="" />
+    <!--<arg name="item"        default="test" />-->
+    <arg name="item"        default="empty" />
+    <arg name="vel"         default="60.0" />
 
     <param name="directory" type="str"  value="$(arg img_set_dir)/$(arg item)" />
     <param name="sub_dir"   type="str"  value="$(arg img_sub_dir)" />
     <param name="item_name" type="str"  value="$(arg item)" />
+    <param name="velocity" type="double"  value="$(arg vel)" />
 
     <!--<include file="$(find realsense_camera)/launch/sr300_nodelet_default.launch" />-->
 
@@ -19,3 +22,15 @@
             output="screen" />
 
 </launch>
+
+<!--objs = ['avery1BinderWhite','bagOfBalloons','burtsBeesBabyWipes','cloroxToiletBrush',
+        'colgateToothbrushs','crayolaCrayons24','drtealsEpsomSalts','dvdRobots',
+        'elmersGlueSticks6Ct','expoEraser','fiskarScissors','greenCompositionBook',
+        'hanesWhitteSocks','irishSpring','johnson&johnsonPaperTape','kleenexCoolTouchTissues',
+        'knitGlovesBlack','laughOutLoundJokesForKids','meshPencilCup','miniMarblesClearLustre',
+        'neopreneWeightPink','plasticWineGlasses','polandSpringsWaterBottle','reynoldsPiePans2ct',
+        'reynoldsWrap85Sqft','robotsEverywhere','scotchClothDuctTape','scotchSponges',
+        'speedStick2Pack','spiralIndexCards','steriliteIceCubeTray','tableCover',
+        'targetBrandMeasuringSpoons','theBatheryDelicateBathSponge','ticonderogaPencils','tomcatMousetraps',
+        'whiteFaceCloth','wilsonTennisBalls','windexSprayBottle23oz','arFlashlihgts',
+        'empty','test']-->
